@@ -14,6 +14,26 @@ from pathlib import Path
 
 
 # ---------------------------------------------------------------------------
+# Env helpers
+# ---------------------------------------------------------------------------
+# CI passes optional overrides like ``${{ vars.AGGREGATE_THRESHOLD }}``. When the
+# repository variable is unset, the value arrives as an EMPTY STRING rather than
+# being absent -- so os.getenv(name, default) returns "" and float("") explodes.
+# These helpers treat empty/whitespace values as "unset" and fall back cleanly.
+def _env_str(name: str, default: str) -> str:
+    value = os.getenv(name)
+    return value if value is not None and value.strip() != "" else default
+
+
+def _env_float(name: str, default: float) -> float:
+    return float(_env_str(name, str(default)))
+
+
+def _env_int(name: str, default: int) -> int:
+    return int(_env_str(name, str(default)))
+
+
+# ---------------------------------------------------------------------------
 # Filesystem layout
 # ---------------------------------------------------------------------------
 # Resolve everything relative to this file so the pipeline works regardless of
@@ -33,18 +53,18 @@ LATEST_SCORES_PATH = REPORTS_DIR / "latest_scores.json"
 # The "target" model is the system under test -- the model whose answers we are
 # grading. The "evaluator" model is the judge used by DeepEval's LLM-based
 # metrics. Per project constraints, BOTH are served by Groq (no OpenAI).
-TARGET_MODEL = os.getenv("TARGET_MODEL", "llama3-8b-8192")
-EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "llama3-70b-8192")
+TARGET_MODEL = _env_str("TARGET_MODEL", "llama3-8b-8192")
+EVALUATOR_MODEL = _env_str("EVALUATOR_MODEL", "llama3-70b-8192")
 
 # Groq credentials. The pipeline reads the key lazily so that --dry-run works
-# with no key present.
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+# with no key present. An empty string counts as "not set".
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") or None
+GROQ_BASE_URL = _env_str("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
 
 # Generation parameters for the target model. Low temperature keeps outputs
 # deterministic enough for regression testing.
-TARGET_TEMPERATURE = float(os.getenv("TARGET_TEMPERATURE", "0.0"))
-TARGET_MAX_TOKENS = int(os.getenv("TARGET_MAX_TOKENS", "1024"))
+TARGET_TEMPERATURE = _env_float("TARGET_TEMPERATURE", 0.0)
+TARGET_MAX_TOKENS = _env_int("TARGET_MAX_TOKENS", 1024)
 
 
 # ---------------------------------------------------------------------------
@@ -53,7 +73,7 @@ TARGET_MAX_TOKENS = int(os.getenv("TARGET_MAX_TOKENS", "1024"))
 # The aggregate-score threshold the whole suite must clear. CI fails the build
 # when the mean score across all test cases drops below this value.
 # Configurable via env var; default is 0.75 as required by the blueprint.
-AGGREGATE_THRESHOLD = float(os.getenv("AGGREGATE_THRESHOLD", "0.75"))
+AGGREGATE_THRESHOLD = _env_float("AGGREGATE_THRESHOLD", 0.75)
 
 
 @dataclass(frozen=True)
