@@ -59,7 +59,10 @@ EVALUATOR_MODEL = _env_str("EVALUATOR_MODEL", "llama3-70b-8192")
 # Groq credentials. The pipeline reads the key lazily so that --dry-run works
 # with no key present. An empty string counts as "not set".
 GROQ_API_KEY = os.getenv("GROQ_API_KEY") or None
-GROQ_BASE_URL = _env_str("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+# Leave unset by default: the Groq SDK already routes to /openai/v1 internally,
+# so hardcoding that suffix here would double it (/openai/v1/openai/v1/...).
+# Only set GROQ_BASE_URL to point at a proxy/self-hosted gateway.
+GROQ_BASE_URL = _env_str("GROQ_BASE_URL", "") or None
 
 # Generation parameters for the target model. Low temperature keeps outputs
 # deterministic enough for regression testing.
@@ -98,7 +101,7 @@ class Settings:
     target_model: str = TARGET_MODEL
     evaluator_model: str = EVALUATOR_MODEL
     groq_api_key: str | None = GROQ_API_KEY
-    groq_base_url: str = GROQ_BASE_URL
+    groq_base_url: str | None = GROQ_BASE_URL
     target_temperature: float = TARGET_TEMPERATURE
     target_max_tokens: int = TARGET_MAX_TOKENS
     aggregate_threshold: float = AGGREGATE_THRESHOLD
