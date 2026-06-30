@@ -53,8 +53,10 @@ LATEST_SCORES_PATH = REPORTS_DIR / "latest_scores.json"
 # The "target" model is the system under test -- the model whose answers we are
 # grading. The "evaluator" model is the judge used by DeepEval's LLM-based
 # metrics. Per project constraints, BOTH are served by Groq (no OpenAI).
-TARGET_MODEL = _env_str("TARGET_MODEL", "llama3-8b-8192")
-EVALUATOR_MODEL = _env_str("EVALUATOR_MODEL", "llama3-70b-8192")
+# Groq decommissioned the original llama3-*-8192 IDs (shutdown 2025-08-30);
+# these are the current production Llama replacements.
+TARGET_MODEL = _env_str("TARGET_MODEL", "llama-3.1-8b-instant")
+EVALUATOR_MODEL = _env_str("EVALUATOR_MODEL", "llama-3.3-70b-versatile")
 
 # Groq credentials. The pipeline reads the key lazily so that --dry-run works
 # with no key present. An empty string counts as "not set".

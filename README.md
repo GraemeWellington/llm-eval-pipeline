@@ -92,8 +92,8 @@ All knobs live in `config.py` and can be overridden via environment variables.
 | Setting | Env var | Default |
 | --- | --- | --- |
 | Aggregate gate threshold | `AGGREGATE_THRESHOLD` | `0.75` |
-| Target model | `TARGET_MODEL` | `llama3-8b-8192` |
-| Evaluator (judge) model | `EVALUATOR_MODEL` | `llama3-70b-8192` |
+| Target model | `TARGET_MODEL` | `llama-3.1-8b-instant` |
+| Evaluator (judge) model | `EVALUATOR_MODEL` | `llama-3.3-70b-versatile` |
 | Groq API key | `GROQ_API_KEY` | _(required for live runs)_ |
 | Target temperature | `TARGET_TEMPERATURE` | `0.0` |
 
