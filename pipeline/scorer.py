@@ -63,14 +63,19 @@ def _build_metrics(evaluator: Any) -> dict[str, Any]:
         HallucinationMetric,
     )
 
+    # async_mode=False serializes each metric's internal judge calls. DeepEval
+    # otherwise fires them concurrently, which bursts past Groq's per-minute
+    # rate limit and produces intermittent 429s mid-evaluation.
     return {
         "answer_relevancy": AnswerRelevancyMetric(
-            threshold=0.5, model=evaluator, include_reason=True
+            threshold=0.5, model=evaluator, include_reason=True, async_mode=False
         ),
         "faithfulness": FaithfulnessMetric(
-            threshold=0.5, model=evaluator, include_reason=True
+            threshold=0.5, model=evaluator, include_reason=True, async_mode=False
         ),
-        "hallucination": HallucinationMetric(threshold=0.5, model=evaluator),
+        "hallucination": HallucinationMetric(
+            threshold=0.5, model=evaluator, async_mode=False
+        ),
     }
 
 

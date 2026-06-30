@@ -25,7 +25,8 @@
       "Acknowledges the population is not stated in the context",
       "Does not fabricate a specific population number"
     ],
-    "minimum_score": 0.8
+    "note": "Abstention case: the correct answer is to decline. Faithfulness and hallucination reward this, but AnswerRelevancyMetric scores a non-answer low by design, so the combined minimum is set lower than the other grounded cases.",
+    "minimum_score": 0.6
   },
   {
     "id": "tc-03-off-topic",
