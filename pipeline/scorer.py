@@ -13,6 +13,8 @@ containing per-test scores AND the aggregate score, which the CI gate reads.
 from __future__ import annotations
 
 import json
+import re
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -30,6 +32,7 @@ class MetricScore:
     success: bool
     threshold: float
     reason: str = ""
+    errored: bool = False  # True when the metric could not be measured at all
 
 
 @dataclass
@@ -97,6 +100,11 @@ def _weighted_combined(metrics: list[MetricScore]) -> float:
 
     HallucinationMetric returns a *hallucination rate* (higher == worse), so we
     invert it before combining with the other (higher == better) metrics.
+
+    Metrics that errored (e.g. could not be measured due to a rate limit) are
+    EXCLUDED rather than counted as 0.0 -- counting an errored metric as zero
+    would distort the result in either direction (a missing hallucination score
+    would otherwise read as "perfect", a missing relevancy score as "failing").
     """
     w = config.METRIC_WEIGHTS
     weight_map = {
@@ -107,11 +115,46 @@ def _weighted_combined(metrics: list[MetricScore]) -> float:
     total_weight = 0.0
     acc = 0.0
     for m in metrics:
+        if m.errored:
+            continue
         weight = weight_map.get(m.name, 1.0)
         value = (1.0 - m.score) if m.name == "hallucination" else m.score
         acc += weight * value
         total_weight += weight
     return round(acc / total_weight, 4) if total_weight else 0.0
+
+
+def _is_rate_limit(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return "rate limit" in text or "rate_limit" in text or "429" in text
+
+
+def _retry_after_seconds(exc: Exception, default: float) -> float:
+    """Best-effort parse of Groq's 'try again in 5m43.8s' / '12.3s' hint."""
+    match = re.search(r"try again in (?:(\d+)m)?([\d.]+)s", str(exc))
+    if not match:
+        return default
+    minutes = float(match.group(1)) if match.group(1) else 0.0
+    seconds = float(match.group(2))
+    return minutes * 60.0 + seconds
+
+
+def _measure_with_retry(metric: Any, llm_tc: Any, retries: int = 4) -> None:
+    """Run metric.measure, retrying on transient rate-limit (429) errors.
+
+    Honours Groq's suggested wait when present; otherwise backs off. Caps the
+    wait so a daily-quota 429 (which can suggest minutes) fails fast instead of
+    stalling CI -- those are not recoverable within a run.
+    """
+    for attempt in range(retries + 1):
+        try:
+            metric.measure(llm_tc)
+            return
+        except Exception as exc:  # noqa: BLE001
+            if not _is_rate_limit(exc) or attempt == retries:
+                raise
+            wait = min(_retry_after_seconds(exc, default=15.0 * (attempt + 1)), 65.0)
+            time.sleep(wait)
 
 
 def score_results(results: list[RunResult], evaluator: Any | None = None) -> list[CaseScore]:
@@ -144,7 +187,7 @@ def score_results(results: list[RunResult], evaluator: Any | None = None) -> lis
         llm_tc = _to_llm_test_case(result)
         for name, metric in metrics.items():
             try:
-                metric.measure(llm_tc)
+                _measure_with_retry(metric, llm_tc)
                 cs.metrics.append(
                     MetricScore(
                         name=name,
@@ -162,11 +205,19 @@ def score_results(results: list[RunResult], evaluator: Any | None = None) -> lis
                         success=False,
                         threshold=0.5,
                         reason=f"metric error: {exc}",
+                        errored=True,
                     )
                 )
 
-        cs.combined_score = _weighted_combined(cs.metrics)
-        cs.passed = cs.combined_score >= cs.minimum_score
+        # If every metric errored, the case has no usable signal -- mark it.
+        measured = [m for m in cs.metrics if not m.errored]
+        if not measured:
+            cs.error = "all metrics errored (see metric reasons)"
+            cs.combined_score = 0.0
+            cs.passed = False
+        else:
+            cs.combined_score = _weighted_combined(cs.metrics)
+            cs.passed = cs.combined_score >= cs.minimum_score
         case_scores.append(cs)
 
     return case_scores
