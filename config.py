@@ -71,6 +71,10 @@ GROQ_BASE_URL = _env_str("GROQ_BASE_URL", "") or None
 TARGET_TEMPERATURE = _env_float("TARGET_TEMPERATURE", 0.0)
 TARGET_MAX_TOKENS = _env_int("TARGET_MAX_TOKENS", 1024)
 
+# How many times the Groq client retries transient failures (esp. 429 rate
+# limits). The SDK backs off exponentially and honours Retry-After headers.
+GROQ_MAX_RETRIES = _env_int("GROQ_MAX_RETRIES", 6)
+
 
 # ---------------------------------------------------------------------------
 # Quality gate

@@ -3,24 +3,31 @@ Groq-backed evaluator model for DeepEval.
 
 DeepEval's LLM-based metrics (relevancy, faithfulness, hallucination) need a
 "judge" model. By default DeepEval reaches for OpenAI, which this project
-forbids. This module wraps Groq's OpenAI-compatible Chat Completions endpoint
-in a ``DeepEvalBaseLLM`` subclass so every metric is judged by Groq/Llama3.
+forbids. This module wraps Groq's Chat Completions endpoint in a
+``DeepEvalBaseLLM`` subclass so every metric is judged by Groq/Llama3.
 
-The class also supports DeepEval's JSON/schema mode: when a metric passes a
-Pydantic ``schema``, we ask Groq to return JSON and validate it. This keeps the
-metrics deterministic and avoids brittle free-text parsing.
+DeepEval calls ``generate`` with a Pydantic ``schema`` when it wants structured
+output and expects an INSTANCE of that schema back. We use the ``instructor``
+library (recommended by the DeepEval docs for API-based models) to coerce Groq's
+reply into the schema -- this both guarantees valid JSON and avoids the
+"Object of type Groq is not JSON serializable" error that arises when the raw
+client leaks into DeepEval's result serialization.
 """
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
+import instructor
 from deepeval.models.base_model import DeepEvalBaseLLM
 from groq import Groq
 from pydantic import BaseModel
 
 import config
+
+# Retry on transient Groq errors (notably 429 rate limits). The Groq SDK honours
+# Retry-After and backs off exponentially up to this many attempts.
+_MAX_RETRIES = config.GROQ_MAX_RETRIES
 
 
 class GroqEvaluatorLLM(DeepEvalBaseLLM):
@@ -32,54 +39,49 @@ class GroqEvaluatorLLM(DeepEvalBaseLLM):
         api_key: str | None = None,
         base_url: str | None = None,
     ) -> None:
-        self.model = model or config.EVALUATOR_MODEL
-        self._api_key = api_key or config.require_api_key()
-        self._base_url = base_url or config.GROQ_BASE_URL
-        self._client: Groq | None = None
-        super().__init__(self.model)
+        self.model_name = model or config.EVALUATOR_MODEL
+        api_key = api_key or config.require_api_key()
+        base_url = base_url if base_url is not None else config.GROQ_BASE_URL
+
+        # Raw client for free-text generation; instructor wrapper for schemas.
+        client_kwargs: dict[str, Any] = {"api_key": api_key, "max_retries": _MAX_RETRIES}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        self._raw_client = Groq(**client_kwargs)
+        self._structured_client = instructor.from_groq(
+            self._raw_client, mode=instructor.Mode.JSON
+        )
+        # DeepEvalBaseLLM expects load_model() to provide the underlying model.
+        self.model = self._raw_client
 
     # -- DeepEvalBaseLLM interface -----------------------------------------
     def load_model(self) -> Groq:
-        """Lazily build and cache the Groq client."""
-        if self._client is None:
-            self._client = Groq(api_key=self._api_key, base_url=self._base_url)
-        return self._client
+        return self._raw_client
 
     def generate(self, prompt: str, schema: type[BaseModel] | None = None) -> Any:
-        """Synchronously call Groq and optionally coerce the reply into ``schema``.
-
-        DeepEval calls ``generate`` with a ``schema`` when it wants structured
-        output. We honour that by requesting a JSON object and validating it.
-        """
-        client = self.load_model()
-
-        kwargs: dict[str, Any] = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.0,
-        }
+        """Call Groq; return a string, or a ``schema`` instance when requested."""
         if schema is not None:
-            # Ask Groq for a raw JSON object so we can parse into the schema.
-            kwargs["response_format"] = {"type": "json_object"}
+            # instructor enforces the JSON structure and returns a schema object.
+            return self._structured_client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
+                response_model=schema,
+                max_retries=_MAX_RETRIES,
+            )
 
-        response = client.chat.completions.create(**kwargs)
-        content = response.choices[0].message.content or ""
-
-        if schema is None:
-            return content
-
-        data = json.loads(content)
-        return schema.model_validate(data)
+        response = self._raw_client.chat.completions.create(
+            model=self.model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+        )
+        return response.choices[0].message.content or ""
 
     async def a_generate(
         self, prompt: str, schema: type[BaseModel] | None = None
     ) -> Any:
-        """Async variant. Groq's SDK is sync, so we delegate to ``generate``.
-
-        DeepEval awaits this in its async metric paths; running the sync call
-        inline is acceptable for a CI-scale test suite.
-        """
+        """Async variant. Groq's client is sync, so we delegate to ``generate``."""
         return self.generate(prompt, schema)
 
     def get_model_name(self) -> str:
-        return f"Groq::{self.model}"
+        return f"Groq::{self.model_name}"

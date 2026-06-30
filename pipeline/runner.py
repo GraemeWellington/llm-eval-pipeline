@@ -108,7 +108,14 @@ def run_all(cases: list[TestCase] | None = None) -> list[RunResult]:
 
     cases = cases if cases is not None else load_test_cases()
     api_key = config.require_api_key()
-    client = Groq(api_key=api_key, base_url=config.GROQ_BASE_URL)
+    client_kwargs: dict[str, Any] = {
+        "api_key": api_key,
+        "max_retries": config.GROQ_MAX_RETRIES,
+    }
+    # Only override base_url for a proxy/gateway; otherwise use the SDK default.
+    if config.GROQ_BASE_URL:
+        client_kwargs["base_url"] = config.GROQ_BASE_URL
+    client = Groq(**client_kwargs)
 
     return [run_single(client, case) for case in cases]
 

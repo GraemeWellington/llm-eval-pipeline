@@ -1,8 +1,12 @@
 # Core evaluation framework
 deepeval>=1.0.0
 
-# Groq client (OpenAI-compatible) -- used for BOTH the target and evaluator LLMs
+# Groq client -- used for BOTH the target and evaluator LLMs
 groq>=0.11.0
+
+# Structured-output coercion for the DeepEval judge (returns validated Pydantic
+# instances; avoids the "Groq is not JSON serializable" issue)
+instructor>=1.5.0
 
 # Test runner
 pytest>=8.0.0
