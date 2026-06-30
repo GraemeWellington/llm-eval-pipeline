@@ -1,0 +1,11 @@
+# Core evaluation framework
+deepeval>=1.0.0
+
+# Groq client (OpenAI-compatible) -- used for BOTH the target and evaluator LLMs
+groq>=0.11.0
+
+# Test runner
+pytest>=8.0.0
+
+# DeepEval depends on pydantic v2; pinned explicitly for schema validation
+pydantic>=2.5.0

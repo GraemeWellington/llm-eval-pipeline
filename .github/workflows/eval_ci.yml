@@ -1,0 +1,82 @@
+name: LLM Eval CI
+
+# Run the evaluation suite on every pull request and on pushes to main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Dry-run sanity check (no API calls)
+        run: python -m pipeline.runner --dry-run
+
+      - name: Run evaluation suite
+        env:
+          # Provide GROQ_API_KEY as a repository secret.
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          # Optional overrides; defaults come from config.py.
+          AGGREGATE_THRESHOLD: ${{ vars.AGGREGATE_THRESHOLD }}
+        run: |
+          # -v shows each parametrized test case (which failed and why);
+          # -ra prints a short reason summary for failures at the end.
+          pytest -v -ra
+
+      - name: Enforce aggregate threshold gate
+        if: always()
+        env:
+          AGGREGATE_THRESHOLD: ${{ vars.AGGREGATE_THRESHOLD }}
+        run: |
+          # Independent gate that reads reports/latest_scores.json and exits
+          # non-zero if the aggregate score is below the configured threshold.
+          # Belt-and-suspenders alongside the pytest assertion above.
+          python - <<'PY'
+          import json, os, sys
+          from pathlib import Path
+
+          scores_path = Path("reports/latest_scores.json")
+          if not scores_path.exists():
+              print("::error::reports/latest_scores.json not found - did the suite run?")
+              sys.exit(1)
+
+          data = json.loads(scores_path.read_text())
+          agg = data["aggregate_score"]
+          threshold = float(os.getenv("AGGREGATE_THRESHOLD") or data["aggregate_threshold"])
+
+          print(f"Aggregate score: {agg:.4f} | Threshold: {threshold:.2f}")
+          if agg < threshold:
+              print(f"::error::Aggregate score {agg:.4f} below threshold {threshold:.2f}")
+              for c in data["cases"]:
+                  if not c["passed"]:
+                      print(f"::error::FAILED {c['id']} ({c['failure_mode']}): "
+                            f"{c['combined_score']:.4f} < {c['minimum_score']:.2f}")
+              sys.exit(1)
+          print("Aggregate threshold gate passed.")
+          PY
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-reports
+          path: |
+            reports/latest_scores.json
+            reports/report_*.md
+          if-no-files-found: ignore

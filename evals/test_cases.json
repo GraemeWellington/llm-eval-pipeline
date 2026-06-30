@@ -1,0 +1,148 @@
+[
+  {
+    "id": "tc-01-factual-grounded",
+    "failure_mode": "hallucination",
+    "input": "Based on the context, what year was the Eiffel Tower completed?",
+    "context": [
+      "The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars in Paris, France.",
+      "It was constructed from 1887 to 1889 and was completed in 1889 as the entrance arch to the 1889 World's Fair."
+    ],
+    "expected_output_criteria": [
+      "States the completion year as 1889",
+      "Does not invent facts absent from the context"
+    ],
+    "minimum_score": 0.8
+  },
+  {
+    "id": "tc-02-hallucination-trap",
+    "failure_mode": "hallucination",
+    "input": "Using only the context, what is the population of the city of Aldoria?",
+    "context": [
+      "Aldoria is a fictional coastal town referenced in a fantasy novel.",
+      "The provided documents do not mention any population figures for Aldoria."
+    ],
+    "expected_output_criteria": [
+      "Acknowledges the population is not stated in the context",
+      "Does not fabricate a specific population number"
+    ],
+    "minimum_score": 0.8
+  },
+  {
+    "id": "tc-03-off-topic",
+    "failure_mode": "off-topic response",
+    "input": "What is the capital of France?",
+    "context": [
+      "France is a country in Western Europe.",
+      "Its capital and most populous city is Paris."
+    ],
+    "expected_output_criteria": [
+      "Directly answers that the capital is Paris",
+      "Stays on topic and does not drift to unrelated subjects"
+    ],
+    "minimum_score": 0.8
+  },
+  {
+    "id": "tc-04-missing-key-info",
+    "failure_mode": "missing key information",
+    "input": "List the three primary colors mentioned in the context.",
+    "context": [
+      "In the traditional RYB color model, the three primary colors are red, yellow, and blue.",
+      "These colors cannot be mixed from other colors."
+    ],
+    "expected_output_criteria": [
+      "Mentions red",
+      "Mentions yellow",
+      "Mentions blue"
+    ],
+    "minimum_score": 0.85
+  },
+  {
+    "id": "tc-05-incorrect-format",
+    "failure_mode": "incorrect format",
+    "input": "Return the numbers one through five as a comma-separated list, digits only.",
+    "context": [
+      "The user expects exactly: 1, 2, 3, 4, 5"
+    ],
+    "expected_output_criteria": [
+      "Output is a comma-separated list of digits",
+      "Contains the digits 1 through 5 in order",
+      "Does not add prose or explanation"
+    ],
+    "minimum_score": 0.75
+  },
+  {
+    "id": "tc-06-verbose",
+    "failure_mode": "overly verbose output",
+    "input": "In one short sentence, what does HTTP stand for?",
+    "context": [
+      "HTTP stands for HyperText Transfer Protocol."
+    ],
+    "expected_output_criteria": [
+      "States that HTTP means HyperText Transfer Protocol",
+      "Answer is concise -- a single short sentence",
+      "Does not include long tangential explanations"
+    ],
+    "minimum_score": 0.75
+  },
+  {
+    "id": "tc-07-faithfulness-summary",
+    "failure_mode": "hallucination",
+    "input": "Summarize the company's Q3 results from the context.",
+    "context": [
+      "In Q3, Acme Corp reported revenue of $4.2 million, up 12% year over year.",
+      "Net profit was $0.5 million. The company did not announce any acquisitions."
+    ],
+    "expected_output_criteria": [
+      "Mentions revenue of $4.2 million",
+      "Mentions the 12% year-over-year growth",
+      "Does not claim any acquisition occurred"
+    ],
+    "minimum_score": 0.8
+  },
+  {
+    "id": "tc-08-relevancy-distractor",
+    "failure_mode": "off-topic response",
+    "input": "How many moons does Mars have, according to the context?",
+    "context": [
+      "Mars is the fourth planet from the Sun.",
+      "It has two small moons, Phobos and Deimos.",
+      "Jupiter, by contrast, has dozens of moons."
+    ],
+    "expected_output_criteria": [
+      "States that Mars has two moons",
+      "Optionally names Phobos and Deimos",
+      "Does not answer about Jupiter's moons"
+    ],
+    "minimum_score": 0.8
+  },
+  {
+    "id": "tc-09-missing-steps",
+    "failure_mode": "missing key information",
+    "input": "What are the steps to make tea according to the context?",
+    "context": [
+      "To make tea: 1) Boil water. 2) Pour water over the tea bag. 3) Steep for 3-5 minutes. 4) Remove the tea bag."
+    ],
+    "expected_output_criteria": [
+      "Mentions boiling water",
+      "Mentions steeping the tea",
+      "Mentions removing the tea bag",
+      "Does not omit a major step"
+    ],
+    "minimum_score": 0.8
+  },
+  {
+    "id": "tc-10-format-json",
+    "failure_mode": "incorrect format",
+    "input": "Return the user's name and age as a JSON object with keys 'name' and 'age'. The name is Ada and the age is 36.",
+    "context": [
+      "Expected output: {\"name\": \"Ada\", \"age\": 36}"
+    ],
+    "expected_output_criteria": [
+      "Output is valid JSON",
+      "Contains a 'name' key set to Ada",
+      "Contains an 'age' key set to 36",
+      "Does not wrap the JSON in extra prose"
+    ],
+    "minimum_score": 0.75
+  }
+]
