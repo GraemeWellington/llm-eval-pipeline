@@ -32,8 +32,11 @@ jobs:
         env:
           # Provide GROQ_API_KEY as a repository secret.
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          # Optional overrides; defaults come from config.py.
+          # Optional overrides; unset variables arrive as "" and fall back to
+          # the defaults in config.py.
           AGGREGATE_THRESHOLD: ${{ vars.AGGREGATE_THRESHOLD }}
+          TARGET_MODEL: ${{ vars.TARGET_MODEL }}
+          EVALUATOR_MODEL: ${{ vars.EVALUATOR_MODEL }}
         run: |
           # -v shows each parametrized test case (which failed and why);
           # -ra prints a short reason summary for failures at the end.

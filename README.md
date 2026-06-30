@@ -93,7 +93,13 @@ All knobs live in `config.py` and can be overridden via environment variables.
 | --- | --- | --- |
 | Aggregate gate threshold | `AGGREGATE_THRESHOLD` | `0.75` |
 | Target model | `TARGET_MODEL` | `llama-3.1-8b-instant` |
-| Evaluator (judge) model | `EVALUATOR_MODEL` | `llama-3.3-70b-versatile` |
+| Evaluator (judge) model | `EVALUATOR_MODEL` | `llama-3.1-8b-instant` |
+
+> **Free-tier note:** the judge defaults to the 8B model so the whole suite
+> fits within Groq's free daily token budget. `llama-3.3-70b-versatile` is a
+> stronger judge, but its free-tier limit (100K tokens/day) is quickly
+> exhausted by repeated runs. On a paid/Dev tier, set
+> `EVALUATOR_MODEL=llama-3.3-70b-versatile` for higher-fidelity grading.
 | Groq API key | `GROQ_API_KEY` | _(required for live runs)_ |
 | Target temperature | `TARGET_TEMPERATURE` | `0.0` |
 

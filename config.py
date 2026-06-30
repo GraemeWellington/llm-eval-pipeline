@@ -56,7 +56,11 @@ LATEST_SCORES_PATH = REPORTS_DIR / "latest_scores.json"
 # Groq decommissioned the original llama3-*-8192 IDs (shutdown 2025-08-30);
 # these are the current production Llama replacements.
 TARGET_MODEL = _env_str("TARGET_MODEL", "llama-3.1-8b-instant")
-EVALUATOR_MODEL = _env_str("EVALUATOR_MODEL", "llama-3.3-70b-versatile")
+# The judge defaults to the 8B model so the full suite fits inside Groq's free
+# tier. llama-3.3-70b-versatile is a stronger judge but its free-tier daily
+# token budget (100k TPD) is easily exhausted by repeated runs -- set
+# EVALUATOR_MODEL=llama-3.3-70b-versatile on a paid/Dev tier for higher fidelity.
+EVALUATOR_MODEL = _env_str("EVALUATOR_MODEL", "llama-3.1-8b-instant")
 
 # Groq credentials. The pipeline reads the key lazily so that --dry-run works
 # with no key present. An empty string counts as "not set".
