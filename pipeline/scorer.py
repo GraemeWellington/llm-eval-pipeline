@@ -1,10 +1,15 @@
 """
 Scorer: applies DeepEval metrics to runner outputs and produces structured scores.
 
-Metrics used (all judged by the Groq evaluator, never OpenAI):
+Metrics available (all judged by the Groq evaluator, never OpenAI):
   * AnswerRelevancyMetric -- is the answer relevant to the question?
   * FaithfulnessMetric    -- is the answer grounded in the provided context?
   * HallucinationMetric   -- does the answer contradict / fabricate vs context?
+
+A case may apply a subset of these via the ``metrics`` field in test_cases.json
+(absent => all apply). This lets a case opt out of a metric that is not the
+signal it probes -- e.g. an off-topic case is graded on relevancy + hallucination
+and skips faithfulness, which is noisy on very short grounded answers.
 
 The scorer writes a machine-readable summary to ``reports/latest_scores.json``
 containing per-test scores AND the aggregate score, which the CI gate reads.
@@ -184,8 +189,23 @@ def score_results(results: list[RunResult], evaluator: Any | None = None) -> lis
             case_scores.append(cs)
             continue
 
+        # Per-case metric selection: a case may declare a subset of metrics in
+        # test_cases.json (``metrics``). Absent/empty => all metrics apply. An
+        # unknown metric name is a config error and fails loudly rather than
+        # silently mis-scoring the suite.
+        selected = result.case.metrics
+        if selected:
+            unknown = [n for n in selected if n not in metrics]
+            if unknown:
+                raise ValueError(
+                    f"case {result.case.id!r} declares unknown metric(s) {unknown}; "
+                    f"valid names are {sorted(metrics)}"
+                )
+
         llm_tc = _to_llm_test_case(result)
         for name, metric in metrics.items():
+            if selected and name not in selected:
+                continue
             try:
                 _measure_with_retry(metric, llm_tc)
                 cs.metrics.append(

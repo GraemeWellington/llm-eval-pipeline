@@ -32,9 +32,16 @@ class TestCase:
     context: list[str]
     expected_output_criteria: list[str]
     minimum_score: float
+    # Which metrics to apply to this case. ``None`` (the default, when the field
+    # is absent from JSON) means "all metrics" -- back-compatible with cases that
+    # predate per-case selection. Declaring a subset lets a case opt out of a
+    # metric that is not the signal it probes (e.g. an off-topic case need not be
+    # graded on faithfulness, which is noisy on very short factual answers).
+    metrics: list[str] | None = None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "TestCase":
+        raw_metrics = raw.get("metrics")
         return cls(
             id=raw["id"],
             failure_mode=raw.get("failure_mode", "unspecified"),
@@ -42,6 +49,7 @@ class TestCase:
             context=list(raw.get("context", []) or []),
             expected_output_criteria=list(raw.get("expected_output_criteria", [])),
             minimum_score=float(raw.get("minimum_score", config.AGGREGATE_THRESHOLD)),
+            metrics=list(raw_metrics) if raw_metrics else None,
         )
 
 
@@ -129,6 +137,7 @@ def _dry_run(cases: list[TestCase]) -> None:
         print(f"    input          : {case.input}")
         print(f"    context        : {case.context if case.context else '(none)'}")
         print(f"    criteria       : {case.expected_output_criteria}")
+        print(f"    metrics        : {case.metrics if case.metrics else '(all)'}")
         print(f"    minimum_score  : {case.minimum_score}")
         print("    prompt preview :")
         for line in build_prompt(case).splitlines():
