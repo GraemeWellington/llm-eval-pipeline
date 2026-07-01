@@ -36,12 +36,14 @@ jobs:
           # the defaults in config.py.
           AGGREGATE_THRESHOLD: ${{ vars.AGGREGATE_THRESHOLD }}
           TARGET_MODEL: ${{ vars.TARGET_MODEL }}
-          # CI judges with the higher-throughput 8B model so the suite survives
-          # more than ~1 run/day on Groq's free tier (the 70B judge's ~100k TPD
-          # budget drains fast and then every call 429s). Set a repo variable
-          # EVALUATOR_MODEL to override (e.g. llama-3.3-70b-versatile for a
-          # high-fidelity run once quota allows).
-          EVALUATOR_MODEL: ${{ vars.EVALUATOR_MODEL || 'llama-3.1-8b-instant' }}
+          # Judge with the 70B model (config.py default). The 8B judge is higher
+          # throughput but too noisy to hold the per-case minimums calibrated
+          # against 70B (it failed tc-01/tc-05/tc-07 while aggregate still
+          # passed), so 70B remains the grader of record. The trade-off is
+          # ~1 full run/day on Groq's free-tier 100k TPD budget; if that's
+          # drained, the capped retries now fail fast (minutes, not hours).
+          # Set a repo variable EVALUATOR_MODEL to override for a given run.
+          EVALUATOR_MODEL: ${{ vars.EVALUATOR_MODEL }}
         run: |
           # -v shows each parametrized test case (which failed and why);
           # -ra prints a short reason summary for failures at the end.
