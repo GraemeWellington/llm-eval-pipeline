@@ -40,6 +40,8 @@
       "Directly answers that the capital is Paris",
       "Stays on topic and does not drift to unrelated subjects"
     ],
+    "metrics": ["answer_relevancy", "hallucination"],
+    "note": "Off-topic detection is measured by relevancy (on-topic?) and hallucination (contradicts context?). FaithfulnessMetric is excluded: on a one-word grounded answer like 'Paris.' its claim extraction is unreliable and it misfires (scored 0.0 despite the context stating Paris is the capital), which is noise rather than signal for this failure mode.",
     "minimum_score": 0.8
   },
   {
@@ -114,6 +116,8 @@
       "Optionally names Phobos and Deimos",
       "Does not answer about Jupiter's moons"
     ],
+    "metrics": ["answer_relevancy", "hallucination"],
+    "note": "Same off-topic failure mode as tc-03: graded on relevancy + hallucination. Faithfulness is excluded for consistency so this case does not pass only by luck of a verbose enough answer for the claim extractor.",
     "minimum_score": 0.8
   },
   {
