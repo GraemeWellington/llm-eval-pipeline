@@ -26,8 +26,12 @@ from pydantic import BaseModel
 import config
 
 # Retry on transient Groq errors (notably 429 rate limits). The Groq SDK honours
-# Retry-After and backs off exponentially up to this many attempts.
+# Retry-After and backs off exponentially up to this many attempts. instructor's
+# structured-output loop retries separately and is kept low so the two layers
+# don't multiply into hour-long hangs against an exhausted daily quota.
 _MAX_RETRIES = config.GROQ_MAX_RETRIES
+_STRUCTURED_MAX_RETRIES = config.GROQ_STRUCTURED_MAX_RETRIES
+_TIMEOUT_SECONDS = config.GROQ_TIMEOUT_SECONDS
 
 
 class GroqEvaluatorLLM(DeepEvalBaseLLM):
@@ -44,7 +48,11 @@ class GroqEvaluatorLLM(DeepEvalBaseLLM):
         base_url = base_url if base_url is not None else config.GROQ_BASE_URL
 
         # Raw client for free-text generation; instructor wrapper for schemas.
-        client_kwargs: dict[str, Any] = {"api_key": api_key, "max_retries": _MAX_RETRIES}
+        client_kwargs: dict[str, Any] = {
+            "api_key": api_key,
+            "max_retries": _MAX_RETRIES,
+            "timeout": _TIMEOUT_SECONDS,
+        }
         if base_url:
             client_kwargs["base_url"] = base_url
         self._raw_client = Groq(**client_kwargs)
@@ -67,7 +75,7 @@ class GroqEvaluatorLLM(DeepEvalBaseLLM):
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.0,
                 response_model=schema,
-                max_retries=_MAX_RETRIES,
+                max_retries=_STRUCTURED_MAX_RETRIES,
             )
 
         response = self._raw_client.chat.completions.create(

@@ -76,9 +76,25 @@ GROQ_BASE_URL = _env_str("GROQ_BASE_URL", "") or None
 TARGET_TEMPERATURE = _env_float("TARGET_TEMPERATURE", 0.0)
 TARGET_MAX_TOKENS = _env_int("TARGET_MAX_TOKENS", 1024)
 
-# How many times the Groq client retries transient failures (esp. 429 rate
+# How many times the Groq SDK retries transient HTTP failures (esp. 429 rate
 # limits). The SDK backs off exponentially and honours Retry-After headers.
-GROQ_MAX_RETRIES = _env_int("GROQ_MAX_RETRIES", 6)
+#
+# This is deliberately small. There are TWO retry layers: the Groq SDK (here)
+# and instructor's own retry loop (GROQ_STRUCTURED_MAX_RETRIES) that wraps the
+# structured judge calls. They MULTIPLY -- SDK=6 x instructor=6 meant up to ~36
+# HTTP attempts per metric, so a run against an *exhausted* daily quota (every
+# call 429s) ground on for ~2 hours before failing instead of failing fast.
+# Keep the product small so a drained-quota run errors in minutes, not hours,
+# while still absorbing the brief 429s a healthy run hits under Groq's TPM cap.
+GROQ_MAX_RETRIES = _env_int("GROQ_MAX_RETRIES", 3)
+
+# Retries for instructor's structured-output loop (schema-validation failures).
+# Kept separate and low so it does not multiply the SDK's rate-limit backoff.
+GROQ_STRUCTURED_MAX_RETRIES = _env_int("GROQ_STRUCTURED_MAX_RETRIES", 2)
+
+# Per-request wall-clock timeout (seconds) for Groq calls, so a single stalled
+# request can't hang the whole suite regardless of the retry counts above.
+GROQ_TIMEOUT_SECONDS = _env_float("GROQ_TIMEOUT_SECONDS", 60.0)
 
 
 # ---------------------------------------------------------------------------
