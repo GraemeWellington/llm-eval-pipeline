@@ -10,3 +10,7 @@ reports/
 
 # Secrets
 .env
+
+# Local doc/build artifacts (not part of the pipeline)
+MarkdownToDOCX.bat
+*.docx
